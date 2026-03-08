@@ -12,8 +12,7 @@ def plot_ecg(ecg, leads = PTB_ORDER, sf = 250, file_name = None, plot_title = No
     t = np.arange(T) / sf
 
     fig, axes = plt.subplots(n_leads, 1, figsize=(12, n_leads * 0.8), sharex = True)
-    if n_leads == 1:
-        axes = [axes]
+    axes = np.atleast_1d(axes)
     for i, ax in enumerate(axes):
         ax.plot(t, ecg[i], color = 'k', linewidth = 0.5)
         ax.set_ylabel(leads[i], fontsize=8, rotation=0, 
@@ -37,7 +36,8 @@ def plot_forecast(full_gt, full_pred, n_ctx_flat, n_gt_end, n_pred_end,
     n_leads = full_gt.shape[0]
     t = np.arange(segment_len) / sf
 
-    fig, axes = plt.subplots(n_leads, 1, figsize=(20, n_leads * 1.2), sharex=True)
+    fig, axes = plt.subplots(n_leads, 1, figsize=(20, max(n_leads * 1.2, 3)), sharex=True)
+    axes = np.atleast_1d(axes)
     for i, ax in enumerate(axes):
         lead_start = i * segment_len
         bnd = np.clip(n_ctx_flat - lead_start, 0, segment_len)
