@@ -36,7 +36,7 @@ def plot_forecast(full_gt, full_pred, n_ctx_flat, n_gt_end, n_pred_end,
     n_leads = full_gt.shape[0]
     t = np.arange(segment_len) / sf
 
-    fig, axes = plt.subplots(n_leads, 1, figsize=(20, n_leads * 1.2), sharex=True)
+    fig, axes = plt.subplots(n_leads, 1, figsize=(20, max(n_leads * 1.2, 3)), sharex=True)
     axes = np.atleast_1d(axes)
     for i, ax in enumerate(axes):
         lead_start = i * segment_len
