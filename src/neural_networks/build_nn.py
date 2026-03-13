@@ -53,7 +53,8 @@ class BuildNN:
         if self.args.bfloat_16:
             signal_head = signal_head.to(torch.bfloat16)
         freeze = getattr(self.args, "freeze_decoder", False)
-        return DecoderWithSignalHead(decoder, signal_head, freeze_decoder=freeze)
+        alpha = getattr(self.args, "flow_loss_weight", 1.0)
+        return DecoderWithSignalHead(decoder, signal_head, freeze_decoder=freeze, flow_loss_weight=alpha)
 
     def prepare_transformer(self, data_representation):
         if "trans_discrete" in self.args.neural_network:

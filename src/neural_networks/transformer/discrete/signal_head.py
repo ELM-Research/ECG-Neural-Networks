@@ -127,11 +127,13 @@ class SignalFlowHead(nn.Module):
 
 
 class DecoderWithSignalHead(nn.Module):
-    def __init__(self, decoder: nn.Module, signal_head: SignalFlowHead, freeze_decoder: bool = False):
+    def __init__(self, decoder: nn.Module, signal_head: SignalFlowHead,
+                 freeze_decoder: bool = False, flow_loss_weight: float = 1.0):
         super().__init__()
         self.decoder = decoder
         self.signal_head = signal_head
         self._freeze_decoder = freeze_decoder
+        self.flow_loss_weight = flow_loss_weight
         if freeze_decoder:
             for p in self.decoder.parameters():
                 p.requires_grad_(False)
@@ -146,12 +148,12 @@ class DecoderWithSignalHead(nn.Module):
             tgt_key_padding_mask = self.decoder._make_key_padding_mask(tgt_ids)
         decoder_out = self.decoder(tgt_ids, tgt_key_padding_mask, labels if not self._freeze_decoder else None)
         signal_out = self.signal_head(decoder_out.hidden_states, signal, context_mask=tgt_key_padding_mask)
+        flow_loss = signal_out.loss * self.flow_loss_weight
         if decoder_out.loss is not None:
-            signal_out = SignalFlowHeadOutput(
-                loss=signal_out.loss + decoder_out.loss,
-                prediction=signal_out.prediction,
-            )
-        return signal_out
+            loss = decoder_out.loss + flow_loss
+        else:
+            loss = flow_loss
+        return SignalFlowHeadOutput(loss=loss, prediction=signal_out.prediction)
 
     @torch.inference_mode()
     def generate_signal(self, tgt_ids: torch.Tensor, max_new_tokens: int, signal_shape: tuple,

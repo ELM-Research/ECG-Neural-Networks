@@ -100,6 +100,7 @@ def get_args(mode: Mode) -> argparse.Namespace:
         parser.add_argument("--signal_head_layers", type=int, default=4, help="Number of transformer layers in the signal head")
         parser.add_argument("--signal_head_num_steps", type=int, default=50, help="ODE integration steps for signal head inference")
         parser.add_argument("--freeze_decoder", action="store_true", default=None, help="Freeze decoder weights during signal head training")
+        parser.add_argument("--flow_loss_weight", type=float, default=1.0, help="Weight alpha for flow matching loss in combined CE + alpha*flow objective")
         parser.add_argument(
             "--torch_compile",
             action="store_true",
