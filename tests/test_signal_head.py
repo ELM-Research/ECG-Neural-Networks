@@ -35,21 +35,32 @@ def test_timestep_embedding_odd_dim():
 
 
 def test_signal_flow_head_forward(signal_head):
-    bsz, c, seq_len = 2, 12, 100
-    context_emb = torch.randn(bsz, 64)
+    bsz, c, seq_len, ctx_len = 2, 12, 100, 20
+    context = torch.randn(bsz, ctx_len, 64)
     signal = torch.randn(bsz, c, seq_len)
-    out = signal_head(context_emb, signal)
+    out = signal_head(context, signal)
     assert isinstance(out, SignalFlowHeadOutput)
     assert out.loss.shape == ()
     assert out.loss.item() >= 0
     assert out.prediction.shape == (bsz, c, seq_len)
 
 
+def test_signal_flow_head_forward_with_mask(signal_head):
+    bsz, c, seq_len, ctx_len = 2, 12, 100, 20
+    context = torch.randn(bsz, ctx_len, 64)
+    context_mask = torch.zeros(bsz, ctx_len, dtype=torch.bool)
+    context_mask[:, -5:] = True
+    signal = torch.randn(bsz, c, seq_len)
+    out = signal_head(context, signal, context_mask=context_mask)
+    assert out.loss.shape == ()
+    assert out.prediction.shape == (bsz, c, seq_len)
+
+
 def test_signal_flow_head_sample(signal_head):
-    bsz, c, seq_len = 2, 12, 100
-    context_emb = torch.randn(bsz, 64)
+    bsz, c, seq_len, ctx_len = 2, 12, 100, 20
+    context = torch.randn(bsz, ctx_len, 64)
     signal_head.eval()
-    sampled = signal_head.sample(context_emb, (bsz, c, seq_len), torch.device("cpu"), num_steps=5)
+    sampled = signal_head.sample(context, (bsz, c, seq_len), torch.device("cpu"), num_steps=5)
     assert sampled.shape == (bsz, c, seq_len)
 
 
@@ -111,22 +122,23 @@ def test_decoder_with_signal_head_resize(decoder, signal_head):
     assert model.cfg.vocab_size == 150
 
 
-def test_pool_hidden_states():
-    model = DecoderWithSignalHead.__new__(DecoderWithSignalHead)
-    hidden = torch.ones(2, 4, 8)
-    mask = torch.tensor([[False, False, True, True], [False, False, False, True]])
-    pooled = model._pool_hidden_states(hidden, mask)
-    assert pooled.shape == (2, 8)
-    assert torch.allclose(pooled[0], torch.ones(8))
-    assert torch.allclose(pooled[1], torch.ones(8))
+def test_cross_attention_uses_full_context(decoder, signal_head):
+    model = DecoderWithSignalHead(decoder, signal_head, freeze_decoder=True)
+    bsz = 1
+    short_ids = torch.randint(1, 100, (bsz, 8))
+    long_ids = torch.randint(1, 100, (bsz, 32))
+    signal = torch.randn(bsz, 12, 100)
+    out_short = model(short_ids, signal)
+    out_long = model(long_ids, signal)
+    assert not torch.allclose(out_short.loss, out_long.loss, atol=1e-6)
 
 
 def test_signal_flow_head_backward(signal_head):
-    context_emb = torch.randn(2, 64, requires_grad=True)
+    context = torch.randn(2, 20, 64, requires_grad=True)
     signal = torch.randn(2, 12, 100)
-    out = signal_head(context_emb, signal)
+    out = signal_head(context, signal)
     out.loss.backward()
-    assert context_emb.grad is not None
+    assert context.grad is not None
     for p in signal_head.parameters():
         if p.requires_grad:
             assert p.grad is not None
