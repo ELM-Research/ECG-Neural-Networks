@@ -266,10 +266,11 @@ class MTAE(nn.Module):
 
         return x, x_latents
 
-    def forward_loss(self, series, pred, mask):
+    def forward_loss(self, series, pred, mask, padding_mask=None):
         """series: (batch_size, num_leads, seq_len)
         pred: (batch_size, n, patch_size * num_leads)
         mask: (batch_size, n), 0 is keep, 1 is remove,
+        padding_mask: (batch_size, seq_len) bool, True is padded
         """
         target = self.patchify(series)
         if self.norm_pix_loss:
@@ -280,21 +281,27 @@ class MTAE(nn.Module):
         loss = (pred - target) ** 2
         loss = loss.mean(dim=-1)  # (batch_size, n), mean loss per patch
 
-        loss = (loss * mask).sum() / mask.sum()  # mean loss on removed patches
+        if padding_mask is not None:
+            b, _ = padding_mask.shape
+            n = mask.shape[-1]
+            per_patch_padded = padding_mask.view(b, n, self.patch_size).any(dim=-1)
+            mask = mask * (~per_patch_padded).to(mask.dtype)
+
+        loss = (loss * mask).sum() / mask.sum().clamp(min=1.0)  # mean loss on removed, non-padded patches
         return loss
 
     def get_features(self, series):
         x, _, _ = self.forward_encoder(series.to(self.to_decoder_embedding.weight.dtype), mask_ratio=0)
         return x[:, 0]
 
-    def forward(self, signal, mask_ratio=0.75):
+    def forward(self, signal, padding_mask=None, mask_ratio=0.75):
         recon_loss = 0
         pred = None
         mask = None
 
         latent, mask, ids_restore = self.forward_encoder(signal.to(self.to_decoder_embedding.weight.dtype), mask_ratio)
         pred, x_latents = self.forward_decoder(latent, ids_restore)
-        recon_loss = self.forward_loss(signal, pred, mask)
+        recon_loss = self.forward_loss(signal, pred, mask, padding_mask)
 
         return MTAEOutput(
             loss=recon_loss,
