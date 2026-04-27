@@ -625,10 +625,11 @@ class ST_MEM(nn.Module):
         x_latents = torch.stack(x_latents, dim=1)
         return x, x_latents
 
-    def forward_loss(self, series, pred, mask):
+    def forward_loss(self, series, pred, mask, padding_mask=None):
         """series: (batch_size, num_leads, seq_len)
         pred: (batch_size, num_leads, n, patch_size)
         mask: (batch_size, num_leads, n), 0 is keep, 1 is remove,
+        padding_mask: (batch_size, seq_len) bool, True is padded
         """
         target = self.patchify(series)
         if self.norm_pix_loss:
@@ -639,19 +640,26 @@ class ST_MEM(nn.Module):
         loss = (pred - target) ** 2
         loss = loss.mean(dim=-1)  # (batch_size, num_leads, n), mean loss per patch
 
-        loss = (loss * mask).sum() / mask.sum()  # mean loss on removed patches
+        if padding_mask is not None:
+            b, _ = padding_mask.shape
+            n = mask.shape[-1]
+            per_patch_padded = padding_mask.view(b, n, self.patch_size).any(dim=-1)
+            valid = (~per_patch_padded).to(mask.dtype).unsqueeze(1)
+            mask = mask * valid
+
+        loss = (loss * mask).sum() / mask.sum().clamp(min=1.0)  # mean loss on removed, non-padded patches
         return loss
 
     def get_features(self, series):
         return self.encoder.forward_encoding(series)
 
-    def forward(self, signal, mask_ratio=0.75):
+    def forward(self, signal, padding_mask=None, mask_ratio=0.75):
         recon_loss = 0
         pred = None
         mask = None
         latent, mask, ids_restore = self.forward_encoder(signal.to(self.to_decoder_embedding.weight.dtype), mask_ratio)
         pred, x_latents = self.forward_decoder(latent, ids_restore)
-        recon_loss = self.forward_loss(signal, pred, mask)
+        recon_loss = self.forward_loss(signal, pred, mask, padding_mask)
         return ST_MEMOutput(loss=recon_loss, out=x_latents,)
 
     def __repr__(self):
