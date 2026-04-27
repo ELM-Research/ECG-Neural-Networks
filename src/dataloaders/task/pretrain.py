@@ -15,7 +15,7 @@ class Pretrain:
     def signal(self, transformed_data,):
         inputs = np.asarray(transformed_data["transformed_data"])
         if self.args.neural_network in ("mlae", "mtae", "st_mem"):
-            return {"series": inputs.astype(np.float32)}
+            return {"signal": inputs.astype(np.float32)}
         if self.args.objective == "autoregressive":
             out =  {
                 "signal": inputs,
