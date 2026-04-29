@@ -4,7 +4,7 @@ import numpy as np
 
 from utils.gpu_setup import is_main
 
-from configs.constants import TRANSFORMER_MODELS, MAE_MODELS, MERL_MODEL, MLAE_MODELS, MTAE_MODELS, ST_MEM_MODELS
+from configs.constants import TRANSFORMER_MODELS, MAE_MODELS, MERL_MODEL, MLAE_MODELS, MTAE_MODELS, ST_MEM_MODELS, TIMESFM_MODELS
 
 
 class BuildNN:
@@ -17,8 +17,6 @@ class BuildNN:
         if "trans" in self.args.neural_network:
             nn_components = self.prepare_transformer(data_representation)
             find_unused = TRANSFORMER_MODELS[self.args.neural_network]["find_unused_parameters"]
-            if getattr(self.args, "signal_head", False):
-                find_unused = True
             nn_components["find_unused_parameters"] = find_unused
         if "mae" in self.args.neural_network:
             nn_components = self.prepare_mae()
@@ -36,40 +34,40 @@ class BuildNN:
             nn_components = self.prepare_st_mem()
             nn_components["find_unused_parameters"] = ST_MEM_MODELS[self.args.neural_network]["find_unused_parameters"]
         assert nn_components is not None, print("NN Components is None")
+
+
+        d_model = nn_components["neural_network"].cfg.d_model
+        add_head_first = self.args.add_task_head and self.args.ckpt_has_head
+
+        if add_head_first:
+            nn_components["neural_network"] = self.add_task_head(nn_components["neural_network"], d_model)
+
         if self.args.nn_ckpt:
             self.load_nn_checkpoint(nn_components, data_representation)
+
+        if self.args.add_task_head and not self.args.ckpt_has_head:
+            nn_components["neural_network"] = self.add_task_head(nn_components["neural_network"], d_model)
+
         return nn_components
 
-    def _wrap_with_signal_head(self, decoder):
-        from neural_networks.transformer.discrete.signal_head import SignalFlowHeadConfig, SignalFlowHead, DecoderWithSignalHead
-        signal_dim = 1 if getattr(self.args, "condition", None) else 12
-        cfg = SignalFlowHeadConfig(
-            signal_dim=signal_dim, d_model=decoder.cfg.d_model, n_heads=decoder.cfg.n_heads,
-            dim_ff=decoder.cfg.dim_ff, num_layers=getattr(self.args, "signal_head_layers", 4),
-            dropout=decoder.cfg.dropout, max_signal_len=self.args.segment_len,
-            num_steps=getattr(self.args, "signal_head_num_steps", 50),
-        )
-        signal_head = SignalFlowHead(cfg)
-        if self.args.bfloat_16:
-            signal_head = signal_head.to(torch.bfloat16)
-        freeze = getattr(self.args, "freeze_decoder", False)
-        alpha = getattr(self.args, "flow_loss_weight", 1.0)
-        return DecoderWithSignalHead(decoder, signal_head, freeze_decoder=freeze, flow_loss_weight=alpha)
-
+    
     def prepare_transformer(self, data_representation):
         if "trans_discrete" in self.args.neural_network:
             vocab_size = data_representation.vocab_size
             if self.args.nn_ckpt:
                 ckpt = torch.load(self.args.nn_ckpt, map_location="cpu", weights_only=False)
-                vocab_size = ckpt["model_state_dict"]["token_emb.weight"].shape[0]
-            if self.args.neural_network == "trans_discrete_decoder":
+                sd = ckpt["model_state_dict"]
+                vocab_size = sd.get("token_emb.weight", sd.get("decoder.token_emb.weight")).shape[0]
+            if self.args.neural_network in {"trans_discrete_decoder", "trans_discrete_decoder_fm"}:
                 from neural_networks.transformer.discrete.decoder import DecoderTransformerConfig, DecoderTransformer
-                cfg = DecoderTransformerConfig(vocab_size=vocab_size, pad_id=self.args.pad_id, max_seq_len=self.args.bpe_symbolic_len)
+                cfg = DecoderTransformerConfig(
+                    vocab_size=vocab_size,
+                    pad_id=self.args.pad_id,
+                    max_seq_len=self.args.bpe_symbolic_len,
+                )
                 model = DecoderTransformer(cfg)
                 if self.args.bfloat_16:
-                    model = model.to(torch.bfloat16)
-                if getattr(self.args, "signal_head", False):
-                    model = self._wrap_with_signal_head(model)
+                    model = model.to(torch.bfloat16) # decoder only usually bfloat16
         elif "trans_continuous" in self.args.neural_network:
             if self.args.neural_network == "trans_continuous_nepa":
                 from neural_networks.transformer.continuous.nepa import NEPAConfig, NEPATransformer

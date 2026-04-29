@@ -11,9 +11,13 @@ class DecoderTransformerConfig:
     vocab_size: int
     pad_id: int
     d_model: int = 512
+    # d_model: int = 1024
     n_heads: int = 8
+    # n_heads: int = 16
     dim_ff: int = 2048
+    # dim_ff: int = 4096
     num_layers: int = 12
+    # num_layers: int = 24
     dropout: float = 0.1
     max_seq_len: int = 512
 
@@ -106,7 +110,7 @@ class DecoderTransformer(nn.Module):
         self,
         tgt_ids: torch.Tensor,
         max_new_tokens: int,
-        temperature: float = 1.0,
+        temperature: float = 0,
         top_k: Optional[int] = None,
         do_sample: bool = False,
         return_new_only: bool = False,

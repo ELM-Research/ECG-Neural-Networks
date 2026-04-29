@@ -20,7 +20,8 @@ class DiTConfig:
     num_steps: int = 50
     beta_start: float = 1e-4
     beta_end: float = 0.02
-    condition: Optional[Literal["text", "lead"]] = None
+    condition: Optional[Literal["label", "text", "lead"]] = None
+    num_label_classes: int = 2
     text_max_len: int = 64
     condition_dropout: float = 0.1
     text_feature_extractor: str = None
@@ -41,6 +42,15 @@ def timestep_embedding(t: torch.Tensor, dim: int, max_period: int = 10000) -> to
     if dim % 2:
         embedding = F.pad(embedding, (0, 1))
     return embedding
+
+
+class LabelEmbedder(nn.Module):
+    def __init__(self, num_classes: int, d_model: int):
+        super().__init__()
+        self.emb = nn.Embedding(num_classes, d_model)
+
+    def forward(self, labels: torch.Tensor) -> torch.Tensor:
+        return self.emb(labels)
 
 
 class LeadEmbedder(nn.Module):
@@ -127,7 +137,9 @@ class DiT(nn.Module):
         )
         self.output_proj = nn.Linear(cfg.d_model, cfg.input_dim)
 
-        if cfg.condition == "text":
+        if cfg.condition == "label":
+            self.condition_embedder = LabelEmbedder(cfg.num_label_classes, cfg.d_model)
+        elif cfg.condition == "text":
             text_feature_extractor = AutoModel.from_pretrained(cfg.text_feature_extractor)
             self.condition_embedder = TextEmbedder(text_feature_extractor, cfg.d_model)
         elif cfg.condition == "lead":
