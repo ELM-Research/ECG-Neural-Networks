@@ -3,16 +3,18 @@ from configs.constants import Mode, ALLOWED_DATA
 
 
 def get_args(mode: Mode) -> argparse.Namespace:
-    if mode not in {"pretrain", "downstream_eval"}:
+    if mode not in {"pretrain", "downstream_train", "downstream_eval"}:
         raise ValueError(f"invalid mode: {mode}")
 
     parser = argparse.ArgumentParser(description=None)
     parser.add_argument("--seed", type=int, default=0, help="Random Seed")
     parser.add_argument("--dev", action="store_true", default=None, help="Development mode")
 
-    if mode in {"pretrain", "downstream_eval"}:
-        parser.add_argument("--task", type=str, default=None, choices=["pretrain", "forecasting", "generation", "reconstruction"])
+    if mode in {"pretrain", "downstream_train", "downstream_eval"}:
+        parser.add_argument("--task", type=str, default=None, choices=["pretrain", "multilabel_classification", "translation", 
+                                                                       "forecasting", "generation", "reconstruction", "multiclass_classification"])
         parser.add_argument("--forecast_ratio", type=float, default=0.5, help="Please choose the percentage you want to forecast")
+        parser.add_argument("--n_forecast_trajectories", type=int, default=1, help="Number of sampled forecast trajectories to plot (>1 enables stochastic generation)")
         parser.add_argument(
             "--data",
             type=str,
@@ -33,14 +35,14 @@ def get_args(mode: Mode) -> argparse.Namespace:
             "--data_representation",
             type=str,
             default=None,
-            choices=["signal", "bpe_symbolic"],
+            choices=["signal", "rgb", "bpe_symbolic"],
             help="Please choose the representation of data you want to input into the neural network.",
         )
         parser.add_argument(
             "--objective",
             type=str,
             default=None,
-            choices=["autoregressive", "mae", "ddpm", "rectified_flow", "merl", "mlae", "mtae", "st_mem",],
+            choices=["autoregressive", "mae", "mlm", "ddpm", "rectified_flow", "merl", "mlae", "mtae", "st_mem",],
             help="Please choose the representation of data you want to input into the neural network.",
         )
         parser.add_argument("--patch_dim", type=int, default=2500, help="Please choose a patch dim that is evenly divisible by signal_len.")
@@ -65,6 +67,9 @@ def get_args(mode: Mode) -> argparse.Namespace:
             help="Please choose the main neural network",
             choices=[
                 "trans_discrete_decoder",
+                "trans_discrete_decoder_fm",
+                "trans_discrete_encoder",
+                "trans_discrete_seq2seq",
                 "trans_continuous_nepa",
                 "trans_continuous_dit",
                 "mae_vit",
@@ -72,11 +77,18 @@ def get_args(mode: Mode) -> argparse.Namespace:
                 "mlae",
                 "mtae",
                 "st_mem",
+                "timesfm25",
             ],
         )
+        parser.add_argument("--signal_head", action="store_true", default=None, help="Attach flow matching signal head to discrete decoder")
+        parser.add_argument("--signal_head_layers", type=int, default=4, help="Number of transformer layers in the signal head")
+        parser.add_argument("--signal_head_num_steps", type=int, default=50, help="ODE integration steps for signal head inference")
+        parser.add_argument("--freeze_decoder", action="store_true", default=None, help="Freeze decoder weights during signal head training")
+        parser.add_argument("--flow_loss_weight", type=float, default=1.0, help="Weight alpha for flow matching loss in combined CE + alpha*flow objective")
+        parser.add_argument("--add_task_head", action="store_true", default=None, help="Adds task head")
+        parser.add_argument("--ckpt_has_head", action="store_true", default=None, help="indicates head is already trained")
 
         parser.add_argument("--norm_eps", type=float, default=1e-6, help="Please choose the normalization epsilon")
-
         parser.add_argument("--wandb", action="store_true", default=None, help="Enable logging")
 
         parser.add_argument("--device", type=str, default=None, help="Device (cuda/cpu)")
@@ -85,9 +97,10 @@ def get_args(mode: Mode) -> argparse.Namespace:
         parser.add_argument("--ema", action="store_true", default=None)
         parser.add_argument("--ema_decay", type=float, default=0.999)
 
-        parser.add_argument("--condition", type=str, default=None, choices=["text", "lead"],
+        parser.add_argument("--condition", type=str, default=None, choices=["label", "text", "lead"],
                     help="Condition type for conditional diffusion (None = unconditional)")
-        parser.add_argument("--condition_lead", type=int, default=0, help="Lead index for lead conditioning (0-indexed, default=1 for lead II)")
+        parser.add_argument("--condition_lead", type=int, nargs="+", default=[0], help="Lead indices for lead conditioning (0-indexed)")
+        parser.add_argument("--lead_tokens", action="store_true", default=None, help="Insert lead-specific start/end tokens in BPE sequences")
         parser.add_argument("--condition_dropout", type=float, default=0.1, help="Condition dropout probability for classifier-free guidance")
         parser.add_argument("--cfg_scale", type=float, default=1.0, help="Classifier-free guidance scale at inference (1.0 = no guidance)")
         parser.add_argument("--condition_text_max_len", type=int, default=128, help="Max text length for text conditioning (byte-level)")
@@ -96,11 +109,6 @@ def get_args(mode: Mode) -> argparse.Namespace:
         parser.add_argument("--ecg_norm", type = str, default = "instance_minmax", 
                             choices=["instance_minmax", "instance_zscore", "lead_minmax", "lead_zscore"], help = "choose the normalization method for the ECG")
         parser.add_argument("--bfloat_16", action = "store_true", default = None)
-        parser.add_argument("--signal_head", action="store_true", default=None, help="Attach flow matching signal head to discrete decoder")
-        parser.add_argument("--signal_head_layers", type=int, default=4, help="Number of transformer layers in the signal head")
-        parser.add_argument("--signal_head_num_steps", type=int, default=50, help="ODE integration steps for signal head inference")
-        parser.add_argument("--freeze_decoder", action="store_true", default=None, help="Freeze decoder weights during signal head training")
-        parser.add_argument("--flow_loss_weight", type=float, default=1.0, help="Weight alpha for flow matching loss in combined CE + alpha*flow objective")
         parser.add_argument(
             "--torch_compile",
             action="store_true",
