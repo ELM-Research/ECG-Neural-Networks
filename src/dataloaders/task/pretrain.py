@@ -19,7 +19,7 @@ class Pretrain:
             if self.args.neural_network in ("mtae", "st_mem") and "padding_mask" in transformed_data:
                 out["padding_mask"] = np.asarray(transformed_data["padding_mask"], dtype=bool)
             return out
-        if self.args.objective == "autoregressive":
+        elif self.args.objective == "autoregressive":
             out =  {
                 "signal": inputs,
             }
@@ -56,8 +56,26 @@ class Pretrain:
     def bpe_symbolic(self, transformed_data):
         inputs = np.asarray(transformed_data["transformed_data"])
         labels = inputs.copy()
-        labels[labels == self.args.pad_id] = -100
-        labels[labels == self.args.bos_id] = -100
+        if self.args.objective == "autoregressive":
+            labels[labels == self.args.pad_id] = -100
+            labels[labels == self.args.bos_id] = -100
+        elif self.args.objective == "mlm":
+            special_ids = {self.args.pad_id, self.args.cls_id, self.args.sep_id, self.args.mask_id}
+            labels = np.full_like(inputs, fill_value=-100)
+            masked_input_ids = inputs.copy()
+            candidate_positions = [i for i, t in enumerate(inputs) if t not in special_ids]
+            num_to_mask = int(len(candidate_positions) * 0.15)
+            if num_to_mask > 0:
+                mask_positions = np.random.choice(candidate_positions, size=num_to_mask, replace=False)
+                for pos in mask_positions:
+                    labels[pos] = inputs[pos]
+                    rand = np.random.random()
+                    if rand < 0.8:
+                        masked_input_ids[pos] = self.args.mask_id
+                    elif rand < 0.9:
+                        masked_input_ids[pos] = np.random.randint(0, np.max(inputs))
+            inputs = masked_input_ids
+
         inputs = torch.as_tensor(inputs, dtype=torch.long)
         labels = torch.as_tensor(labels, dtype=torch.long) if labels is not None else None
         out = {"tgt_ids": inputs, "labels": labels}

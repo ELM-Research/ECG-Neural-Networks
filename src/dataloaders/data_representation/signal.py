@@ -18,16 +18,23 @@ class Signal:
             "padding_mask": padding_mask,
         }
 
-        if self.args.condition == "lead":
-            result["condition"] = padded_data[self.args.condition_lead].astype(np.float32)
-            other = [i for i in PTB_INDEPENDENT_IDX if i != self.args.condition_lead]
-            result["transformed_data"] = padded_data[other]
+        if self.args.condition:
+            if self.args.condition == "label":
+                label_name = self.args.condition_label
+                result["condition"] = np.int64(data[label_name])
+            elif self.args.condition == "lead":
+                if self.args.task in ["reconstruction", "generation"]:
+                    result["condition"] = padded_data[self.args.condition_lead].astype(np.float32)
+                    other = [i for i in PTB_INDEPENDENT_IDX if i != self.args.condition_lead]
+                    result["transformed_data"] = padded_data[other]
+                else:
+                    result["transformed_data"] = padded_data[self.args.condition_lead]
 
         if self.text_feature_extractor:
             result["condition"] = self.encode_text(report, self.args.condition_text_max_len)
-                    
+        
+        result["report"] = report
         if self.args.task in ["reconstruction", "generation"]:
-            result["report"] = report
             result["12_lead_gt"] = padded_data
         return result
 

@@ -19,7 +19,12 @@ class BPESymbolic:
         else:
             extra_special = []
 
-        self.special_tokens = base_special + extra_special
+        lead_special = []
+        if getattr(self.args, "lead_tokens", None):
+            for lead_idx in range(12):
+                lead_special.extend([f"lead_{lead_idx}_start_id", f"lead_{lead_idx}_end_id"])
+
+        self.special_tokens = base_special + extra_special + lead_special
         self.special_tokens_map = set()
 
         for i, token_name in enumerate(self.special_tokens):
@@ -27,8 +32,6 @@ class BPESymbolic:
             setattr(self.args, token_name, token_id)
             self.special_tokens_map.update([token_id])
 
-        # print("SPECIAL TOKENS", self.special_tokens)
-        # print("SPECIAL TOKEN MAP", self.special_tokens_map)
         self.vocab_size = base_vocab_size + len(self.special_tokens)
 
     def __call__(self, data: Dict[str, np.ndarray]) -> Dict[str, Any]:
@@ -39,28 +42,40 @@ class BPESymbolic:
         skip_pad = "eval" in self.args.mode
         seq = self.build_autoregressive_sequence(per_mod_tokens)
         seq = seq if skip_pad else self.pad_tokenized_data(seq)
-        out = {"transformed_data": seq, "min": mn, "max": mx, "report": report}
-        if getattr(self.args, "signal_head", False):
-            signal = normalized_signal.astype(np.float32)
-            if signal.ndim == 1:
-                signal = signal[np.newaxis, :]
-            out["signal"] = signal
-        return out
+        return {
+            "transformed_data": seq,
+            "min": mn,
+            "max": mx,
+            "report": report,
+            "signal": normalized_signal.astype(np.float32),
+        }
 
     def signal_to_bpe_tokens(self, ecg: np.ndarray):
-        per_mod_tokens: List[List[int]] = []
         clipped_arr, mn, mx = self.normalize(ecg)
-        quantized_arr = self.quantize(clipped_arr)
-        symbols = self.quantized_to_symbol(quantized_arr)
-        joined_symbols = "".join(symbols.ravel())
-        bpe_tokens = bpe.encode_symbol(joined_symbols, self.merges)
-        per_mod_tokens.append(bpe_tokens)
+        per_mod_tokens: List = []
+        if getattr(self.args, "lead_tokens", None) and clipped_arr.ndim == 2:
+            for i, lead_idx in enumerate(self.args.condition_lead):
+                quantized = self.quantize(clipped_arr[i])
+                symbols = self.quantized_to_symbol(quantized)
+                tokens = bpe.encode_symbol("".join(symbols.ravel()), self.merges)
+                per_mod_tokens.append((lead_idx, tokens))
+        else:
+            quantized = self.quantize(clipped_arr)
+            symbols = self.quantized_to_symbol(quantized)
+            tokens = bpe.encode_symbol("".join(symbols.ravel()), self.merges)
+            per_mod_tokens.append(tokens)
         return per_mod_tokens, mn, mx, clipped_arr
 
-    def build_autoregressive_sequence(self, per_mod_tokens: List[List[int]]) -> List[int]:
+    def build_autoregressive_sequence(self, per_mod_tokens: List) -> List[int]:
         flat: List[int] = []
-        for tokens in per_mod_tokens:
-            flat.extend(tokens)
+        if per_mod_tokens and isinstance(per_mod_tokens[0], tuple):
+            for lead_idx, tokens in per_mod_tokens:
+                start_id = getattr(self.args, f"lead_{lead_idx}_start_id")
+                end_id = getattr(self.args, f"lead_{lead_idx}_end_id")
+                flat.extend([start_id] + tokens + [end_id])
+        else:
+            for tokens in per_mod_tokens:
+                flat.extend(tokens)
         return [self.args.bos_id] + flat + [self.args.eos_id]
 
     def pad_tokenized_data(self, tokenized_data: List[int]) -> List[int]:

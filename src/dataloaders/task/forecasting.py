@@ -15,6 +15,9 @@ class Forecasting:
 
     def signal(self, transformed_data: Dict[str, Any]):
         inputs = np.asarray(transformed_data["transformed_data"])
+        if "eval" in self.args.mode:
+            context_len = int(inputs.shape[-1] * (1 - self.args.forecast_ratio))
+            return {"signal": inputs, "context_len": context_len, "report": transformed_data.get("report", "")}
         padding_mask = transformed_data.get("padding_mask")
         modality_mask = transformed_data.get("modality_mask")
         if self.args.objective == "autoregressive":
@@ -36,6 +39,7 @@ class Forecasting:
 
         inputs = torch.as_tensor(inputs, dtype=torch.long)
         labels = torch.as_tensor(labels, dtype=torch.long) if labels is not None else None
+
 
         if self.args.neural_network == "trans_discrete_decoder":
             out = {"tgt_ids": inputs, "labels": labels}
