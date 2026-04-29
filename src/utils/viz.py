@@ -32,7 +32,7 @@ def plot_ecg(ecg, leads = PTB_ORDER, sf = 250, file_name = None, plot_title = No
     plt.close()
 
 def plot_forecast(full_gt, full_pred, n_ctx_flat, n_gt_end, n_pred_end,
-                  report, save_path, segment_len=2500, leads=PTB_ORDER, sf=250):
+                  report, save_path, segment_len=2500, leads=PTB_ORDER, sf=250, ctx_per_lead=None):
     n_leads = full_gt.shape[0]
     t = np.arange(segment_len) / sf
 
@@ -40,7 +40,7 @@ def plot_forecast(full_gt, full_pred, n_ctx_flat, n_gt_end, n_pred_end,
     axes = np.atleast_1d(axes)
     for i, ax in enumerate(axes):
         lead_start = i * segment_len
-        bnd = np.clip(n_ctx_flat - lead_start, 0, segment_len)
+        bnd = ctx_per_lead if ctx_per_lead is not None else np.clip(n_ctx_flat - lead_start, 0, segment_len)
         gt_end = np.clip(n_gt_end - lead_start, 0, segment_len)
         pred_end = np.clip(n_pred_end - lead_start, 0, segment_len)
         pad_start = min(gt_end, pred_end)
@@ -64,6 +64,47 @@ def plot_forecast(full_gt, full_pred, n_ctx_flat, n_gt_end, n_pred_end,
         mlines.Line2D([], [], color="tab:blue", linewidth=1.0, label="Ground Truth"),
         mlines.Line2D([], [], color="tab:red", linewidth=1.0, label="Prediction"),
         mpatches.Patch(color="lavender", alpha=0.5, label="Padding"),
+    ]
+    fig.legend(handles=handles, loc="lower center", ncol=4, fontsize=10,
+               frameon=False, bbox_to_anchor=(0.5, -0.02))
+    axes[-1].set_xlabel("Time (s)", fontsize=10)
+    fig.suptitle(report, fontsize=12)
+    fig.tight_layout(rect=[0, 0.03, 1, 1])
+    fig.savefig(save_path, dpi=150, bbox_inches="tight")
+    plt.close()
+
+
+def plot_forecast_trajectories(full_gt, trajs, n_ctx_flat,
+                               report, save_path, segment_len=2500, leads=PTB_ORDER, sf=250):
+    n_traj, n_leads = trajs.shape[0], full_gt.shape[0]
+    t = np.arange(segment_len) / sf
+
+    fig, axes = plt.subplots(n_leads, 1, figsize=(20, max(n_leads * 1.2, 3)), sharex=True)
+    axes = np.atleast_1d(axes)
+    for i, ax in enumerate(axes):
+        bnd = np.clip(n_ctx_flat - i * segment_len, 0, segment_len)
+        ax.plot(t[:bnd], full_gt[i, :bnd], color="black", linewidth=1.0)
+        if bnd < segment_len:
+            ax.plot(t[bnd:], full_gt[i, bnd:], color="tab:blue", linewidth=1.0)
+            for j in range(n_traj):
+                ax.plot(t[bnd:], trajs[j, i, bnd:], color="tab:red", alpha=0.15, linewidth=0.6)
+            mean = trajs[:, i, bnd:].mean(axis=0)
+            std = trajs[:, i, bnd:].std(axis=0)
+            ax.plot(t[bnd:], mean, color="tab:red", linewidth=1.2)
+            ax.fill_between(t[bnd:], mean - std, mean + std, color="tab:red", alpha=0.15)
+        if 0 < bnd < segment_len:
+            ax.axvline(t[bnd], color="gray", linestyle="--", linewidth=0.8)
+        ax.set_ylabel(leads[i], fontsize=8, rotation=0, ha="right", va="center")
+        ax.set_yticks([])
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.spines["left"].set_visible(False)
+
+    handles = [
+        mlines.Line2D([], [], color="black", linewidth=1.0, label="Context"),
+        mlines.Line2D([], [], color="tab:blue", linewidth=1.0, label="Ground Truth"),
+        mlines.Line2D([], [], color="tab:red", linewidth=1.2, label=f"Mean ({n_traj} samples)"),
+        mpatches.Patch(color="tab:red", alpha=0.15, label="±1 SD"),
     ]
     fig.legend(handles=handles, loc="lower center", ncol=4, fontsize=10,
                frameon=False, bbox_to_anchor=(0.5, -0.02))

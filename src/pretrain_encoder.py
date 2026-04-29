@@ -67,10 +67,10 @@ def main():
             if checkpoint_manager and is_main():
                 if checkpoint_manager.save_epoch(train_result["average_loss"]):
                     checkpoint_manager.save_checkpoint(nn, optimizer, epoch, -1, is_best=True, prefix="epoch_", ema=ema)
-                if checkpoint_manager.stop_early():
-                    if is_main():
-                        print(f"Early stopping at epoch {epoch}")
-                    break
+                # if checkpoint_manager.stop_early():
+                #     if is_main():
+                #         print(f"Early stopping at epoch {epoch}")
+                #     break
         if is_main() and not args.dev:
             with open(f"{run_folder}/DONE.txt", "w") as _:
                 pass

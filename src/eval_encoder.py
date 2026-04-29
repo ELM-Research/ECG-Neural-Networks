@@ -30,12 +30,13 @@ def main():
     args = get_args(mode)
     args.mode = mode
     assert args.task is not None, print("Please specify a task")
-
+    data_names = "_".join(args.data)
     if args.nn_ckpt:
-        data_names = "_".join(args.data)
         batch_label_names = "_".join(args.batch_labels) if args.batch_labels else "None"
         run_dir = "/".join(args.nn_ckpt.split("/")[:-2])
         args.run_dir = run_dir
+    else:
+        args.run_dir = f"src/runs/{args.neural_network}"
     
     if is_main():
         print(f"Evaluating {args.task}")
@@ -45,7 +46,8 @@ def main():
 
     eval_fn = TASK_RUNNERS[args.task]
 
-    seeds = [0, 1, 2, 3, 4]
+    # seeds = [0, 1, 2, 3, 4]
+    seeds = [0, 1]
     all_metrics = []
     for seed in seeds:
         args.seed = seed
@@ -69,11 +71,12 @@ def main():
     if is_main() and args.wandb:
         log_wandb(results, prefix = "agg")
         cleanup_wandb()
-    if args.nn_ckpt:
-        with open(f"{run_dir}/{args.task}_{batch_label_names}_{data_names}_results.json", "w") as f:
-            json.dump(results, f, indent=2)
-    else:
-        print(results)
+    condition_lead = "_".join(map(str, args.condition_lead))
+    condition_name = f"{args.condition}_{condition_lead}" if args.condition else f"{args.condition}"
+    results_dir = f"{args.run_dir}/{data_names}_{args.forecast_ratio}_{args.bpe_symbolic_len}_{condition_name}_{args.lead_tokens}"
+    print(results)
+    with open(f"{results_dir}/metric_results.json", "w") as f:
+        json.dump(results, f, indent=2)
 
 
 if __name__ == "__main__":
