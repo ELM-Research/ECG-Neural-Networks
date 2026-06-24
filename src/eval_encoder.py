@@ -8,6 +8,7 @@ from utils.gpu_setup import GPUSetup, is_main
 from utils.seed_setup import set_seed
 from utils.eval_stats import aggregate_metrics
 from utils.wandb_setup import setup_wandb, cleanup_wandb, log_wandb
+from utils.dir_file import DirFileManager
 
 from neural_networks.build_nn import BuildNN
 
@@ -75,6 +76,7 @@ def main():
     condition_name = f"{args.condition}_{condition_lead}" if args.condition else f"{args.condition}"
     results_dir = f"{args.run_dir}/{data_names}_{args.forecast_ratio}_{args.bpe_symbolic_len}_{condition_name}_{args.lead_tokens}"
     print(results)
+    DirFileManager.ensure_directory_exists(folder=results_dir)
     with open(f"{results_dir}/metric_results.json", "w") as f:
         json.dump(results, f, indent=2)
 

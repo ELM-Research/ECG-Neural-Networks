@@ -1,3 +1,6 @@
+echo "==> Running CPU unit tests"
+pytest -q tests/dir_file.py -s
+
 echo "==> Running single-GPU + FlashAttention tests"
 pytest -q tests/single_gpu.py -k "test_cuda_available or test_basic_tensor_ops" -s
 
