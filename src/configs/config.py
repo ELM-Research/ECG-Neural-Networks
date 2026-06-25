@@ -77,7 +77,6 @@ def get_args(mode: Mode) -> argparse.Namespace:
                 "mlae",
                 "mtae",
                 "st_mem",
-                "timesfm25",
             ],
         )
         parser.add_argument("--freeze_decoder", action="store_true", default=None, help="Freeze decoder weights during signal head training")

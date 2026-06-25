@@ -10,61 +10,9 @@ from utils.dir_file import DirFileManager
 from configs.constants import PTB_ORDER
 
 def eval_forecasting(nn, dataloader, args):
-    if args.neural_network == "timesfm25":
-        return eval_forecasting_signal(nn, dataloader, args)
-    elif args.signal_head:
+    if args.signal_head:
         return eval_forecasting_signal_head(nn, dataloader, args)
     return eval_forecasting_bpe(nn, dataloader, args)
-
-def eval_forecasting_signal(nn, dataloader, args):
-    show_progress = is_main()
-    nn.eval()
-    device = next(nn.parameters()).device
-    progress = tqdm(dataloader, desc="Evaluating Forecasting (signal)", disable=not show_progress, leave=False)
-    data_names = "_".join(args.data)
-    plot_dir = f"{args.run_dir}/{data_names}_{args.neural_network}_{args.forecast_ratio}"
-    DirFileManager.ensure_directory_exists(folder=plot_dir)
-    all_sig = []
-
-    with torch.no_grad():
-        for step, batch in enumerate(progress):
-            signal = batch["signal"].squeeze(0).numpy()
-            context_len = batch["context_len"].item()
-            report = batch["report"][0]
-            n_leads, total_len = signal.shape
-            forecast_len = total_len - context_len
-
-            forecasts = []
-            for lead in range(n_leads):
-                past = torch.tensor(signal[lead, :context_len], dtype=torch.float32).unsqueeze(0).to(device)
-                preds = []
-                while past.shape[-1] - context_len < forecast_len:
-                    out = nn(past_values=past)
-                    patch = out.mean_predictions
-                    preds.append(patch)
-                    past = torch.cat([past, patch], dim=-1)
-                forecasts.append(torch.cat(preds, dim=-1).squeeze(0)[:forecast_len].cpu().numpy())
-
-            pred_signal = np.stack(forecasts)
-            gt_forecast = signal[:, context_len:]
-            ctx = signal[:, :context_len].ravel()
-            all_sig.append(forecast_metrics(pred_signal.ravel(), gt_forecast.ravel(), ctx))
-
-            if step < 10:
-                full_pred = np.concatenate([signal[:, :context_len], pred_signal], axis=1)
-                n_ctx_flat = context_len * n_leads
-                n_total_flat = total_len * n_leads
-                plot_forecast(signal, full_pred, n_ctx_flat, n_total_flat, n_total_flat,
-                              report, f"{plot_dir}/plot_{step}.png",
-                              segment_len=total_len, leads=PTB_ORDER[:n_leads], sf=args.sf)
-
-            if step > 200:
-                break
-    metrics = {}
-    for k in all_sig[0]:
-        metrics[k] = float(np.nanmean([s[k] for s in all_sig]))
-    print("Forecast | " + " ".join(f"{k}={v:.4f}" for k, v in metrics.items()))
-    return metrics
 
 def eval_forecasting_bpe(nn, dataloader, args):
     show_progress = is_main()
