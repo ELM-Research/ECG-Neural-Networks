@@ -4,7 +4,7 @@ import numpy as np
 
 from utils.gpu_setup import is_main
 
-from configs.constants import TRANSFORMER_MODELS, MAE_MODELS, MERL_MODEL, MLAE_MODELS, MTAE_MODELS, ST_MEM_MODELS, TIMESFM_MODELS
+from configs.constants import TRANSFORMER_MODELS, MAE_MODELS, MERL_MODEL, MLAE_MODELS, MTAE_MODELS, ST_MEM_MODELS
 
 
 class BuildNN:
