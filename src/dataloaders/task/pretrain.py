@@ -23,7 +23,7 @@ class Pretrain:
             out =  {
                 "signal": inputs,
             }
-        elif self.args.objective == "merl":
+        elif self.args.objective in ("merl", "siglip"):
             out =  {
                 "signal": inputs,
             }

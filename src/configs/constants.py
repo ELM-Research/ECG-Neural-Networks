@@ -75,6 +75,12 @@ ST_MEM_MODELS = {
     },
 }
 
+SIGLIP_MODELS = {
+    "siglip": {
+        "find_unused_parameters": False,
+    },
+}
+
 VISION_ENCODERS = {
     "clip-vit-base-patch32": {
         "model": "openai/clip-vit-base-patch32",
