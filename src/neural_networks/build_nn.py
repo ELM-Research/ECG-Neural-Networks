@@ -6,7 +6,6 @@ from utils.gpu_setup import is_main
 
 from configs.constants import TRANSFORMER_MODELS, MAE_MODELS, MERL_MODEL, MLAE_MODELS, MTAE_MODELS, ST_MEM_MODELS, SIGLIP_MODELS
 
-
 class BuildNN:
     def __init__(self, args: argparse.Namespace):
         self.args = args
