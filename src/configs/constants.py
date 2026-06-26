@@ -76,7 +76,7 @@ ST_MEM_MODELS = {
 }
 
 SIGLIP_MODELS = {
-    "siglip": {
+    "siglip2": {
         "find_unused_parameters": False,
     },
 }

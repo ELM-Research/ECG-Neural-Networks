@@ -32,8 +32,8 @@ class BuildNN:
         if self.args.neural_network == "st_mem":
             nn_components = self.prepare_st_mem()
             nn_components["find_unused_parameters"] = ST_MEM_MODELS[self.args.neural_network]["find_unused_parameters"]
-        if self.args.neural_network == "siglip":
-            nn_components = self.prepare_siglip()
+        if self.args.neural_network == "siglip2-base-patch16-naflex":
+            nn_components = self.prepare_siglip2()
             nn_components["find_unused_parameters"] = SIGLIP_MODELS[self.args.neural_network]["find_unused_parameters"]
         assert nn_components is not None, print("NN Components is None")
 
@@ -119,11 +119,11 @@ class BuildNN:
         model = ST_MEM(cfg)
         return {"neural_network": model}
 
-    def prepare_siglip(self):
-        from neural_networks.siglip.siglip import SiglipConfig, SigLIP
-        cfg = SiglipConfig(model=self.args.siglip_model, segment_len=self.args.segment_len,
+    def prepare_siglip2(self):
+        from neural_networks.siglip.siglip2 import SigLIP2Config, SigLIP2
+        cfg = SigLIP2Config(segment_len=self.args.segment_len,
                            patch_size=self.calculate_patch_size())
-        model = SigLIP(cfg)
+        model = SigLIP2(cfg)
         return {"neural_network": model}
 
     def load_nn_checkpoint(self, nn_components, data_representation):

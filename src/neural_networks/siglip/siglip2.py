@@ -8,7 +8,7 @@ from transformers import AutoConfig, AutoModel
 
 
 @dataclass
-class SiglipConfig:
+class SigLIP2Config:
     model: str = "google/siglip2-base-patch16-naflex"
     segment_len: int = 2500
     patch_size: int = 100
@@ -17,7 +17,7 @@ class SiglipConfig:
 
 
 @dataclass
-class SiglipOutput:
+class SigLIP2Output:
     loss: Optional[torch.Tensor]
     out: Optional[torch.Tensor]
 
@@ -34,8 +34,8 @@ class Ecg1DEmbeddings(nn.Module):
         return self.patch_embedding(pixel_values) + self.position_embedding(pos).unsqueeze(0)
 
 
-class SigLIP(nn.Module):
-    def __init__(self, cfg: SiglipConfig):
+class SigLIP2(nn.Module):
+    def __init__(self, cfg: SigLIP2Config):
         super().__init__()
         self.cfg = cfg
         assert cfg.segment_len % cfg.patch_size == 0, "segment_len must be divisible by patch_size"
@@ -59,4 +59,4 @@ class SigLIP(nn.Module):
             spatial_shapes=spatial_shapes,
             return_loss=True,
         )
-        return SiglipOutput(loss=out.loss, out=out.logits_per_text)
+        return SigLIP2Output(loss=out.loss, out=out.logits_per_text)
