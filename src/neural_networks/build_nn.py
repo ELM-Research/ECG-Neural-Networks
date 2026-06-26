@@ -4,8 +4,7 @@ import numpy as np
 
 from utils.gpu_setup import is_main
 
-from configs.constants import TRANSFORMER_MODELS, MAE_MODELS, MERL_MODEL, MLAE_MODELS, MTAE_MODELS, ST_MEM_MODELS
-
+from configs.constants import TRANSFORMER_MODELS, MAE_MODELS, MERL_MODEL, MLAE_MODELS, MTAE_MODELS, ST_MEM_MODELS, SIGLIP_MODELS
 
 class BuildNN:
     def __init__(self, args: argparse.Namespace):
@@ -33,6 +32,9 @@ class BuildNN:
         if self.args.neural_network == "st_mem":
             nn_components = self.prepare_st_mem()
             nn_components["find_unused_parameters"] = ST_MEM_MODELS[self.args.neural_network]["find_unused_parameters"]
+        if self.args.neural_network == "siglip":
+            nn_components = self.prepare_siglip()
+            nn_components["find_unused_parameters"] = SIGLIP_MODELS[self.args.neural_network]["find_unused_parameters"]
         assert nn_components is not None, print("NN Components is None")
 
 
@@ -115,6 +117,13 @@ class BuildNN:
         from neural_networks.st_mem.st_mem import ST_MEMConfig, ST_MEM
         cfg = ST_MEMConfig(seq_len=self.args.segment_len, patch_size=self.calculate_patch_size())
         model = ST_MEM(cfg)
+        return {"neural_network": model}
+
+    def prepare_siglip(self):
+        from neural_networks.siglip.siglip import SiglipConfig, SigLIP
+        cfg = SiglipConfig(model=self.args.siglip_model, segment_len=self.args.segment_len,
+                           patch_size=self.calculate_patch_size())
+        model = SigLIP(cfg)
         return {"neural_network": model}
 
     def load_nn_checkpoint(self, nn_components, data_representation):
