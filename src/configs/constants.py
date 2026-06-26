@@ -76,7 +76,7 @@ ST_MEM_MODELS = {
 }
 
 SIGLIP_MODELS = {
-    "siglip2": {
+    "siglip2-base-patch16-naflex": {
         "find_unused_parameters": False,
     },
 }
