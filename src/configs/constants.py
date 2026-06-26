@@ -81,63 +81,6 @@ SIGLIP_MODELS = {
     },
 }
 
-VISION_ENCODERS = {
-    "clip-vit-base-patch32": {
-        "model": "openai/clip-vit-base-patch32",
-        "tokenizer": "openai/clip-vit-base-patch32",
-        "find_unused_parameters": False,
-        "strict": True,
-        "model_hidden_size": None,
-        "projection_dim": None,
-        "encoder_input_len": 77,
-    },
-    "siglip-base-patch16-224": {
-        "model": "google/siglip-base-patch16-224",
-        "tokenizer": "google/siglip-base-patch16-224",
-        "find_unused_parameters": False,
-        "strict": True,
-        "model_hidden_size": None,
-        "projection_dim": None,
-        "encoder_input_len": 64,
-    },
-    "vit-base-patch16-224-in21k": {
-        "model": "google/vit-base-patch16-224-in21k",
-        "tokenizer": "google/vit-base-patch16-224-in21k",
-        "find_unused_parameters": False,
-        "strict": True,
-        "model_hidden_size": None,
-        "projection_dim": None,
-        "num_patches": None,
-        "encoder_input_len": None,
-    },
-}
-
-
-# Encoders
-ECG_ENCODERS = {
-    "st_mem": {
-        "find_unused_parameters": False,
-        "strict": False,
-        "model_hidden_size": 768,
-        "projection_dim": 256,
-        "encoder_input_len": None,
-    },
-    "mtae": {
-        "find_unused_parameters": False,
-        "strict": False,
-        "model_hidden_size": 768,
-        "projection_dim": 256,
-        "encoder_input_len": None,
-    },
-    "mlae": {
-        "find_unused_parameters": False,
-        "strict": False,
-        "model_hidden_size": 768,
-        "projection_dim": 256,
-        "encoder_input_len": None,
-    },
-}
-
 
 # TEXT CLEANER
 LEADING_PREFIX_RE = re.compile(
