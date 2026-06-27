@@ -135,4 +135,5 @@ def get_args(mode: Mode) -> argparse.Namespace:
         parser.add_argument("--grad_clip", type=float, default=0.0, help="Max gradient norm for clipping (0 to disable)")
         parser.add_argument("--scale_wd", type=str, default="none", choices=["none", "inv_sqrt", "inv_linear"])
         parser.add_argument("--save_step", action="store_true", default=None, help="Save step wise")
+        parser.add_argument("--resume", type=str, default=None, help="Path to a checkpoint to resume training from")
     return parser.parse_args()

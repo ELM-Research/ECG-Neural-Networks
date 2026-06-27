@@ -215,6 +215,13 @@ class Optimizer:
     def zero_grad(self):
         self.optimizer.zero_grad()
 
+    def state_dict(self):
+        return {"optimizer": self.optimizer.state_dict(), "n_current_steps": self.n_current_steps}
+
+    def load_state_dict(self, state_dict):
+        self.optimizer.load_state_dict(state_dict["optimizer"])
+        self.n_current_steps = state_dict["n_current_steps"]
+
     @property
     def learning_rate(self):
         return self.optimizer.param_groups[0]["lr"]
