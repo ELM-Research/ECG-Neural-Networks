@@ -32,7 +32,8 @@ class CheckpointManager:
         }
         if ema is not None:
             checkpoint["ema_state_dict"] = ema.state_dict()
-        torch.save(checkpoint, filepath)
+        if self.args.save_epoch and (epoch + 1) % self.args.save_epoch == 0:
+            torch.save(checkpoint, filepath)
         if is_best:
             best_path = os.path.join(self.checkpoint_dir, f"{prefix}best.pt")
             torch.save(checkpoint, best_path)

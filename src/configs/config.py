@@ -136,4 +136,5 @@ def get_args(mode: Mode) -> argparse.Namespace:
         parser.add_argument("--scale_wd", type=str, default="none", choices=["none", "inv_sqrt", "inv_linear"])
         parser.add_argument("--save_step", action="store_true", default=None, help="Save step wise")
         parser.add_argument("--resume", type=str, default=None, help="Path to a checkpoint to resume training from")
+        parser.add_argument("--save_epoch", type=int, default=1, help="Save a checkpoint every N epochs (0 disables)")
     return parser.parse_args()
