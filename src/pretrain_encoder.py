@@ -66,8 +66,8 @@ def main():
         for epoch in range(start_epoch, args.epochs):
             train_result = run_train(nn, optimizer, dataloader, epoch, args, checkpoint_manager, ema)
             if checkpoint_manager and is_main():
-                if checkpoint_manager.save_epoch(train_result["average_loss"]):
-                    checkpoint_manager.save_checkpoint(nn, optimizer, epoch, -1, is_best=True, prefix="epoch_", ema=ema)
+                is_best = checkpoint_manager.save_epoch(train_result["average_loss"])
+                checkpoint_manager.save_checkpoint(nn, optimizer, epoch, -1, is_best=is_best, prefix="epoch_", ema=ema)
                 # if checkpoint_manager.stop_early():
                 #     if is_main():
                 #         print(f"Early stopping at epoch {epoch}")

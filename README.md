@@ -145,19 +145,6 @@ ECG forecasting (decoder transformer + BPE tokens, 50% context):
 
 ![Forecast example](assets/forecast_example.png)
 
-### Key Flags
-
-| Flag | Description |
-|------|-------------|
-| `--distributed` | Multi-GPU DDP training |
-| `--ema` | Exponential moving average |
-| `--torch_compile` | `torch.compile` the model |
-| `--wandb` | Log to Weights & Biases |
-| `--augment` | ECG data augmentation |
-| `--optimizer` | `adam`, `adamw`, `muon` |
-| `--lr_schedule` | `constant`, `cosine`, `inv_sqrt` |
-| `--condition` | `text`, `lead`, or omit for unconditional |
-
 ## License
 
 MIT, except `st_mem.py`, `mlae.py`, `mtae.py` which are [CC BY-NC 4.0](https://github.com/bakqui/ST-MEM?tab=License-1-ov-file#readme).
