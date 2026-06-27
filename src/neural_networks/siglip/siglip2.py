@@ -28,6 +28,9 @@ class Ecg1DEmbeddings(nn.Module):
         super().__init__()
         self.patch_embedding = nn.Linear(patch_dim, hidden_size)
         self.position_embedding = nn.Embedding(num_patches, hidden_size)
+        nn.init.trunc_normal_(self.patch_embedding.weight, std=patch_dim**-0.5)
+        nn.init.zeros_(self.patch_embedding.bias)
+        nn.init.normal_(self.position_embedding.weight, std=hidden_size**-0.5)
 
     def forward(self, pixel_values, spatial_shapes=None):  # spatial_shapes unused (1D)
         pos = torch.arange(pixel_values.shape[1], device=pixel_values.device)
