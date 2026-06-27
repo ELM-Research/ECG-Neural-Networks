@@ -27,7 +27,8 @@ class CheckpointManager:
             "epoch": epoch,
             "step": step,
             "model_state_dict": model_state_dict,
-            "optimizer_state_dict": optimizer.optimizer.state_dict(),
+            "optimizer_state_dict": optimizer.state_dict(),
+            "best_loss": self.best_loss,
         }
         if ema is not None:
             checkpoint["ema_state_dict"] = ema.state_dict()
@@ -56,3 +57,14 @@ class CheckpointManager:
         best_loss = min(self.epoch_losses[: -self.args.patience])
         current_loss = min(self.epoch_losses[-self.args.patience :])
         return current_loss > best_loss - self.args.patience_delta
+    
+    def load_checkpoint(self, model, optimizer, path, ema=None):
+        ckpt = torch.load(path, map_location="cpu", weights_only=False)
+        (model.module if self.args.distributed else model).load_state_dict(ckpt["model_state_dict"])
+        optimizer.load_state_dict(ckpt["optimizer_state_dict"])
+        self.best_loss = ckpt.get("best_loss", float("inf"))
+        if ema is not None and "ema_state_dict" in ckpt:
+            ema.load_state_dict(ckpt["ema_state_dict"])
+        if is_main():
+            print(f"Resumed from {path} at epoch {ckpt['epoch']}")
+        return ckpt["epoch"] + 1

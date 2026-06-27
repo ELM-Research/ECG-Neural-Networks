@@ -38,10 +38,13 @@ def main():
 
     try:
         if not args.dev:
-            run_folder = setup_experiment_folders(
-                f"{RUNS_FOLDER}/pretrain/{args.neural_network}",
-                args,
-            )
+            if args.resume:
+                run_folder = "/".join(args.resume.split("/")[:-2])
+            else:
+                run_folder = setup_experiment_folders(
+                    f"{RUNS_FOLDER}/pretrain/{args.neural_network}",
+                    args,
+                )
         if is_main() and not args.dev:
             print(f"Run folder: {run_folder}")
             if args.wandb:
@@ -58,11 +61,9 @@ def main():
             gpu_setup.print_model_device(nn, f"{args.neural_network}")
         optimizer = get_optimizer(args, nn)
         ema = EMA(nn, decay = args.ema_decay) if getattr(args, "ema", False) else None
-        if args.dev:
-            checkpoint_manager = None
-        else:
-            checkpoint_manager = CheckpointManager(run_folder, args)
-        for epoch in range(args.epochs):
+        checkpoint_manager = None if args.dev else CheckpointManager(run_folder, args)
+        start_epoch = checkpoint_manager.load_checkpoint(nn, optimizer, args.resume, ema) if checkpoint_manager and args.resume else 0
+        for epoch in range(start_epoch, args.epochs):
             train_result = run_train(nn, optimizer, dataloader, epoch, args, checkpoint_manager, ema)
             if checkpoint_manager and is_main():
                 if checkpoint_manager.save_epoch(train_result["average_loss"]):
