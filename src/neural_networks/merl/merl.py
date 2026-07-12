@@ -16,6 +16,7 @@ class MerlConfig:
     dropout: float = 0.1
     seq_len: int = 2500
     lm: str = "ncbi/MedCPT-Query-Encoder"
+    frozen_text_layers: int = 6
     resnet_type: str = "resnet101"
     distributed: bool = False
     spacial_dim: int = None
@@ -42,8 +43,9 @@ class Merl(nn.Module):
         self.cfg = cfg
         self.resnet = get_resnet(cfg.resnet_type)
         self.lm = AutoModel.from_pretrained(cfg.lm)
-        for p in self.lm.parameters():
-            p.requires_grad = False
+        for layer in self.lm.encoder.layer[:cfg.frozen_text_layers]:
+            for p in layer.parameters():
+                p.requires_grad = False
 
         self.downconv = nn.Conv1d(cfg.in_channels, cfg.proj_out, kernel_size=1)
         self.att_pool_head = AttentionPool2d(
@@ -72,8 +74,7 @@ class Merl(nn.Module):
         ecg1 = self.dropout1(self.linear1(ecg_pooled))
         ecg2 = self.dropout2(self.linear2(ecg_pooled))
 
-        with torch.no_grad():
-            text_emb = self.lm(**condition).pooler_output
+        text_emb = self.lm(**condition).pooler_output
         proj_text = self.proj_t(text_emb)
 
         if self.cfg.distributed:
