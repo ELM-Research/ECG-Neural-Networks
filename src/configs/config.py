@@ -103,6 +103,8 @@ def get_args(mode: Mode) -> argparse.Namespace:
         parser.add_argument("--condition_text_max_len", type=int, default=128, help="Max text length for text conditioning (byte-level)")
         parser.add_argument("--text_feature_extractor", type=str, default=None,
                             help="HuggingFace model name for LLM text encoder")
+        parser.add_argument("--siglip_pretrained", action="store_true", default=None,
+                            help="Initialize SigLIP2 from its Hugging Face checkpoint before replacing the ECG patch stem")
         parser.add_argument("--ecg_norm", type = str, default = "instance_minmax", 
                             choices=["instance_minmax", "instance_zscore", "lead_minmax", "lead_zscore"], help = "choose the normalization method for the ECG")
         parser.add_argument("--bfloat_16", action = "store_true", default = None)

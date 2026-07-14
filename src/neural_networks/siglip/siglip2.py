@@ -10,6 +10,7 @@ from transformers import AutoConfig, AutoModel
 @dataclass
 class SigLIP2Config:
     model: str = "google/siglip2-base-patch16-naflex"
+    pretrained: bool = False
     segment_len: int = 2500
     patch_size: int = 100
     num_leads: int = 12
@@ -42,8 +43,12 @@ class SigLIP2(nn.Module):
         super().__init__()
         self.cfg = cfg
         assert cfg.segment_len % cfg.patch_size == 0, "segment_len must be divisible by patch_size"
-        # SigLIP architecture from config, randomly initialized (trained from scratch)
-        self.vision_encoder = AutoModel.from_config(AutoConfig.from_pretrained(cfg.model))
+        # Optionally retain every pretrained SigLIP2 weight except the 2D image patch stem
+        # replaced below by the ECG-specific 1D stem.
+        if cfg.pretrained:
+            self.vision_encoder = AutoModel.from_pretrained(cfg.model)
+        else:
+            self.vision_encoder = AutoModel.from_config(AutoConfig.from_pretrained(cfg.model))
         # swap the 2D image patch stem for a 1D ECG stem: each time-patch keeps all 12 leads
         hidden = self.vision_encoder.config.vision_config.hidden_size
         self.vision_encoder.vision_model.embeddings = Ecg1DEmbeddings(

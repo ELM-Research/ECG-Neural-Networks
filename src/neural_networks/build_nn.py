@@ -122,7 +122,8 @@ class BuildNN:
     def prepare_siglip2(self):
         from neural_networks.siglip.siglip2 import SigLIP2Config, SigLIP2
         cfg = SigLIP2Config(segment_len=self.args.segment_len,
-                           patch_size=self.calculate_patch_size())
+                           patch_size=self.calculate_patch_size(),
+                           pretrained=self.args.siglip_pretrained)
         model = SigLIP2(cfg)
         return {"neural_network": model}
 
