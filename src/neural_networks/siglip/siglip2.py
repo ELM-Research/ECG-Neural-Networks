@@ -14,6 +14,7 @@ class SigLIP2Config:
     patch_size: int = 100
     num_leads: int = 12
     d_model: int = None
+    pretrained: bool = True
 
 
 @dataclass
@@ -28,6 +29,7 @@ class Ecg1DEmbeddings(nn.Module):
         super().__init__()
         self.patch_embedding = nn.Linear(patch_dim, hidden_size)
         self.position_embedding = nn.Embedding(num_patches, hidden_size)
+
         nn.init.trunc_normal_(self.patch_embedding.weight, std=patch_dim**-0.5)
         nn.init.zeros_(self.patch_embedding.bias)
         nn.init.normal_(self.position_embedding.weight, std=hidden_size**-0.5)
@@ -43,7 +45,10 @@ class SigLIP2(nn.Module):
         self.cfg = cfg
         assert cfg.segment_len % cfg.patch_size == 0, "segment_len must be divisible by patch_size"
         # SigLIP architecture from config, randomly initialized (trained from scratch)
-        self.vision_encoder = AutoModel.from_config(AutoConfig.from_pretrained(cfg.model))
+        if self.cfg.pretrained:
+            self.vision_encoder = AutoModel.from_pretrained(cfg.model)
+        else:
+            self.vision_encoder = AutoModel.from_config(AutoConfig.from_pretrained(cfg.model))
         # swap the 2D image patch stem for a 1D ECG stem: each time-patch keeps all 12 leads
         hidden = self.vision_encoder.config.vision_config.hidden_size
         self.vision_encoder.vision_model.embeddings = Ecg1DEmbeddings(
@@ -51,7 +56,7 @@ class SigLIP2(nn.Module):
         )
         self.cfg.d_model = hidden
 
-    def forward(self, signal, condition, **kwargs):
+    def forward(self, signal, condition):
         # (B, 12, L) -> (B, num_patches, 12*patch_size): split time, keep all leads per patch
         patches = rearrange(signal, "b c (n p) -> b n (c p)", p=self.cfg.patch_size)
         spatial_shapes = torch.zeros(patches.shape[0], 2, dtype=torch.long, device=patches.device)
