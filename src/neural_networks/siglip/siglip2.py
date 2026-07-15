@@ -9,7 +9,7 @@ from transformers import AutoConfig, AutoModel
 
 @dataclass
 class SigLIP2Config:
-    model: str = "google/siglip2-base-patch16-naflex"
+    model: str = "google/siglip2-large-patch16-512"
     segment_len: int = 2500
     patch_size: int = 100
     num_leads: int = 12

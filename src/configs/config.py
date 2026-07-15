@@ -78,6 +78,7 @@ def get_args(mode: Mode) -> argparse.Namespace:
                 "mtae",
                 "st_mem",
                 "siglip2-base-patch16-naflex",
+                "siglip2-large-patch16-512"
             ],
         )
         parser.add_argument("--freeze_decoder", action="store_true", default=None, help="Freeze decoder weights during signal head training")

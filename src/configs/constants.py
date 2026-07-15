@@ -79,6 +79,9 @@ SIGLIP_MODELS = {
     "siglip2-base-patch16-naflex": {
         "find_unused_parameters": False,
     },
+    "siglip2-large-patch16-512": {
+        "find_unused_parameters": False,
+    },
 }
 
 
