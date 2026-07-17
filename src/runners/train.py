@@ -2,7 +2,7 @@ import torch
 from tqdm import tqdm
 import wandb
 
-from utils.gpu_setup import is_main, train_dev_break
+from utils.gpu_setup import all_reduce_sum, is_main, train_dev_break
 from utils.runner_helpers import batch_to_device
 
 def run_train(
@@ -55,5 +55,40 @@ def run_train(
         # if step > 4000:
         #     break
 
+    total_loss = all_reduce_sum(total_loss)
+    total_steps = all_reduce_sum(total_steps)
     average_loss = total_loss / total_steps if total_steps > 0 else float("inf")
+    if getattr(args, "wandb", False) and is_main():
+        wandb.log({"train/loss": average_loss, "epoch": epoch})
     return {"average_loss": average_loss, "total_steps": total_steps}
+
+
+@torch.no_grad()
+def run_validation(nn, dataloader, epoch, args):
+    if dataloader is None:
+        return None
+    nn.eval()
+    device = next(nn.parameters()).device
+    total_loss = 0
+    total_steps = 0
+    progress = tqdm(
+        dataloader,
+        desc=f"Validating: {args.neural_network}; Task: {args.task};Epoch: {epoch}",
+        disable=not is_main(),
+        leave=False,
+    )
+    for batch in progress:
+        batch = {k: batch_to_device(v, device) for k, v in batch.items()}
+        loss = nn(**batch).loss
+        total_loss += loss.item()
+        total_steps += 1
+        if train_dev_break(getattr(args, "dev", False), batch, loss.item()):
+            break
+
+    nn.train()
+    total_loss = all_reduce_sum(total_loss)
+    total_steps = all_reduce_sum(total_steps)
+    average_loss = total_loss / total_steps if total_steps > 0 else float("inf")
+    if getattr(args, "wandb", False) and is_main():
+        wandb.log({"val/loss": average_loss, "epoch": epoch})
+    return average_loss

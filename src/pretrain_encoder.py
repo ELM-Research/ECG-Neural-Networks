@@ -8,7 +8,7 @@ from dataloaders.build_dataloader import BuildDataLoader
 
 from neural_networks.build_nn import BuildNN
 
-from runners.train import run_train
+from runners.train import run_train, run_validation
 
 from utils.checkpoint_manager import CheckpointManager
 from utils.seed_setup import set_seed
@@ -52,6 +52,7 @@ def main():
         set_seed(args.seed)
         build_dataloader = BuildDataLoader(args)
         dataloader = build_dataloader.build_dataloader()
+        val_dataloader = build_dataloader.val_dataloader
         args.max_steps = len(dataloader) * args.epochs
         build_nn = BuildNN(args)
         nn_components = build_nn.build_nn(dataloader.dataset.data_representation)
@@ -65,9 +66,16 @@ def main():
         start_epoch = checkpoint_manager.load_checkpoint(nn, optimizer, args.resume, ema) if checkpoint_manager and args.resume else 0
         for epoch in range(start_epoch, args.epochs):
             train_result = run_train(nn, optimizer, dataloader, epoch, args, checkpoint_manager, ema)
+            val_loss = run_validation(nn, val_dataloader, epoch, args)
             if checkpoint_manager and is_main():
-                is_best = checkpoint_manager.save_epoch(train_result["average_loss"])
-                checkpoint_manager.save_checkpoint(nn, optimizer, epoch, -1, is_best=is_best, prefix="epoch_", ema=ema)
+                if val_loss is None:
+                    is_best = checkpoint_manager.save_epoch(train_result["average_loss"])
+                    checkpoint_manager.save_checkpoint(nn, optimizer, epoch, -1, is_best=is_best, prefix="epoch_", ema=ema)
+                else:
+                    is_train_best = checkpoint_manager.save_best(train_result["average_loss"], "train")
+                    is_val_best = checkpoint_manager.save_epoch(val_loss)
+                    checkpoint_manager.save_checkpoint(nn, optimizer, epoch, -1, is_best=is_train_best, prefix="epoch_train_", ema=ema)
+                    checkpoint_manager.save_checkpoint(nn, optimizer, epoch, -1, is_best=is_val_best, prefix="epoch_", ema=ema)
                 # if checkpoint_manager.stop_early():
                 #     if is_main():
                 #         print(f"Early stopping at epoch {epoch}")
