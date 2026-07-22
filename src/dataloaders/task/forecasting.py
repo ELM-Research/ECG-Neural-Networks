@@ -46,8 +46,6 @@ class Forecasting:
             if "eval" in self.args.mode:
                 out.update({"min": transformed_data["min"], "max": transformed_data["max"],
                             "report": transformed_data["report"], "orig_len" : orig_len})
-            if getattr(self.args, "signal_head", False):
-                out["signal"] = torch.as_tensor(transformed_data["signal"], dtype=torch.float32)
             return out
 
     def autoregressive(self, labels: np.ndarray) -> np.ndarray:

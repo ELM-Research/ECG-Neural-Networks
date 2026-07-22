@@ -10,8 +10,6 @@ from utils.dir_file import DirFileManager
 from configs.constants import PTB_ORDER
 
 def eval_forecasting(nn, dataloader, args):
-    if args.signal_head:
-        return eval_forecasting_signal_head(nn, dataloader, args)
     return eval_forecasting_bpe(nn, dataloader, args)
 
 def eval_forecasting_bpe(nn, dataloader, args):
@@ -87,60 +85,4 @@ def eval_forecasting_bpe(nn, dataloader, args):
     for k in all_sig[0]:
         metrics[k] = float(np.nanmean([s[k] for s in all_sig]))
     print("Forecast | " + " ".join(f"{k}={v:.4f}" for k, v in metrics.items()))
-    return metrics
-
-
-def eval_forecasting_signal_head(nn, dataloader, args):
-    show_progress = is_main()
-    nn.eval()
-    progress = tqdm(dataloader, desc="Evaluating Forecasting (Signal Head)", disable=not show_progress, leave=False)
-    device = next(nn.parameters()).device
-    data_repr = dataloader.dataset.data_representation
-    condition_name = f"{args.condition}" if args.condition else f"{args.condition}_{args.condition_lead}"
-    data_names = "_".join(args.data)
-    plot_dir = f"{args.run_dir}/{data_names}_{args.forecast_ratio}_{args.bpe_symbolic_len}_{condition_name}_signal_head"
-    DirFileManager.ensure_directory_exists(folder=plot_dir)
-
-    if args.condition:
-        n_leads = 1
-        lead_names = [PTB_ORDER[args.condition_lead]]
-    else:
-        n_leads = len(PTB_ORDER)
-        lead_names = PTB_ORDER
-
-    all_sig = []
-    max_seq_len = args.bpe_symbolic_len
-    signal_shape = (1, n_leads, args.segment_len)
-    num_steps = getattr(args, "signal_head_num_steps", 50)
-    n_total = n_leads * args.segment_len
-    n_ctx_flat = int(n_total * (1 - args.forecast_ratio))
-
-    with torch.no_grad():
-        for step, batch in enumerate(progress):
-            report = batch["report"][0]
-            gt_signal = batch["signal"].numpy()
-            mn, mx = batch["min"][0].item(), batch["max"][0].item()
-            batch = {k: batch_to_device(v, device) for k, v in batch.items()}
-            tgt_ids = batch["tgt_ids"]
-            if tgt_ids.size(1) >= max_seq_len:
-                tgt_ids = tgt_ids[:, -(max_seq_len - 1):]
-            labels = batch.get("labels")
-            max_new_tokens = labels.shape[1] if labels is not None else max_seq_len - tgt_ids.size(1)
-            pred_signal = nn.generate_signal(tgt_ids, max_new_tokens, signal_shape, num_steps).cpu().numpy()
-            gt_denorm = data_repr.denormalize(gt_signal[0].ravel(), mn, mx)
-            pred_denorm = data_repr.denormalize(pred_signal[0].ravel(), mn, mx)
-            full_gt = gt_denorm[:n_total].reshape(n_leads, args.segment_len)
-            full_pred = pred_denorm[:n_total].reshape(n_leads, args.segment_len)
-            all_sig.append(forecast_metrics(pred_denorm[n_ctx_flat:n_total], gt_denorm[n_ctx_flat:n_total]))
-            if step < 20:
-                plot_forecast(full_gt, full_pred, n_ctx_flat, n_total, n_total,
-                              report, f"{plot_dir}/plot_{step}.png",
-                              segment_len=args.segment_len, leads=lead_names, sf=args.sf)
-            if step > 3:
-                break
-
-    metrics = {}
-    for k in all_sig[0]:
-        metrics[k] = float(np.nanmean([s[k] for s in all_sig]))
-    print("Forecast (Signal Head) | " + " ".join(f"{k}={v:.4f}" for k, v in metrics.items()))
     return metrics

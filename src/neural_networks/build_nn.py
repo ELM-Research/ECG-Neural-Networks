@@ -139,21 +139,9 @@ class BuildNN:
 
         if "trans_discrete" in self.args.neural_network:
             model = nn_components["neural_network"]
-            has_signal_head = getattr(self.args, "signal_head", False)
-            if has_signal_head:
-                decoder_state = {k.removeprefix("decoder."): v for k, v in state.items() if not k.startswith("signal_head.")}
-                signal_state = {k.removeprefix("signal_head."): v for k, v in state.items() if k.startswith("signal_head.")}
-                old_vocab = decoder_state.get("token_emb.weight", state.get("token_emb.weight")).shape[0]
-                new_vocab = data_representation.vocab_size
-                model.decoder.load_state_dict(decoder_state if decoder_state else state, strict=True)
-                if signal_state:
-                    model.signal_head.load_state_dict(signal_state, strict=True)
-                elif is_main():
-                    print("No signal head weights in checkpoint, using random init")
-            else:
-                old_vocab = state["token_emb.weight"].shape[0]
-                new_vocab = data_representation.vocab_size
-                model.load_state_dict(state, strict=True)
+            old_vocab = state["token_emb.weight"].shape[0]
+            new_vocab = data_representation.vocab_size
+            model.load_state_dict(state, strict=True)
             if new_vocab > old_vocab:
                 model.resize_embeddings(new_vocab)
                 if is_main():
