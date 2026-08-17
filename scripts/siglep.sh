@@ -5,6 +5,7 @@ src/pretrain_encoder.py \
 --data_representation "signal" \
 --objective "siglip2" \
 --neural_network "siglip2-base-patch16-naflex" \
+--patch_size 25 \
 --task "pretrain" \
 --batch_size 1024 \
 --distributed \

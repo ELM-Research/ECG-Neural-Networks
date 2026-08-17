@@ -123,7 +123,7 @@ class BuildNN:
         from neural_networks.siglip.siglip2 import SigLIP2Config, SigLIP2
         cfg = SigLIP2Config(model = f"google/{self.args.neural_network}",
                             segment_len=self.args.segment_len,
-                            patch_size=self.calculate_patch_size())
+                            patch_size=self.args.patch_size)
         model = SigLIP2(cfg)
         return {"neural_network": model}
 
