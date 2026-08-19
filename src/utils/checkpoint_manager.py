@@ -9,6 +9,7 @@ class CheckpointManager:
         self.args = args
         self.checkpoint_dir = os.path.join(run_dir, "checkpoints")
         self.best_loss = float("inf")
+        self.best_losses = {}
         self.epoch_losses = []
         if is_main():
             os.makedirs(self.checkpoint_dir, exist_ok=True)
@@ -29,6 +30,7 @@ class CheckpointManager:
             "model_state_dict": model_state_dict,
             "optimizer_state_dict": optimizer.state_dict(),
             "best_loss": self.best_loss,
+            "best_losses": self.best_losses,
         }
         if ema is not None:
             checkpoint["ema_state_dict"] = ema.state_dict()
@@ -44,6 +46,12 @@ class CheckpointManager:
             self.epoch_losses.append(loss)
             return True
         self.epoch_losses.append(loss)
+        return False
+
+    def save_best(self, loss, name):
+        if loss < self.best_losses.get(name, float("inf")):
+            self.best_losses[name] = loss
+            return True
         return False
 
     def save_step(self, step, total_steps_per_epoch):
@@ -64,6 +72,7 @@ class CheckpointManager:
         (model.module if self.args.distributed else model).load_state_dict(ckpt["model_state_dict"])
         optimizer.load_state_dict(ckpt["optimizer_state_dict"])
         self.best_loss = ckpt.get("best_loss", float("inf"))
+        self.best_losses = ckpt.get("best_losses", {})
         if ema is not None and "ema_state_dict" in ckpt:
             ema.load_state_dict(ckpt["ema_state_dict"])
         if is_main():

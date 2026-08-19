@@ -1,3 +1,5 @@
+import random
+
 from dataloaders.dataset.base_dataset import BaseDataset
 
 from dataloaders.data_representation.signal import Signal
@@ -30,7 +32,26 @@ class DatasetMixer:
                 dataset = load_base_dataset(data_name, self.args)
             datasets.extend(dataset)
         if is_main(): print(f"Length of Dataset: {len(datasets)}")
-        return BaseDataset(datasets, data_representation, task, self.args)
+        train_data, val_data = self.split_train_val(datasets)
+        train_dataset = BaseDataset(train_data, data_representation, task, self.args)
+        val_dataset = BaseDataset(val_data, data_representation, task, self.args) if val_data else None
+        return train_dataset, val_dataset
+
+    def split_train_val(self, data):
+        val_split = getattr(self.args, "val_split", None)
+        if not val_split or "train" not in self.args.mode:
+            return data, None
+        n_total = len(data)
+        n_val = int(n_total * val_split) if val_split < 1 else int(val_split)
+        n_val = max(0, min(n_val, n_total))
+        if n_val == 0:
+            return data, None
+        indices = list(range(n_total))
+        random.Random(self.args.seed).shuffle(indices)
+        val_data = [data[i] for i in indices[:n_val]]
+        train_data = [data[i] for i in indices[n_val:]]
+        if is_main(): print(f"Validation split: {len(train_data)} train / {len(val_data)} val (val_split={val_split})")
+        return train_data, val_data
 
     def build_data_representation(self):
         if is_main():
